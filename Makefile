@@ -22,6 +22,7 @@ PNETCDF_DIR    = $(HOME)/PnetCDF
 CC             = gcc
 OMPCC          = gcc
 MPICC          = mpicc
+NVCC = nvcc
 
 INCFLAGS    = -I.
 OPTFLAGS    = -O2 -DNDEBUG
@@ -131,6 +132,17 @@ INPUTS = $(IMAGE_FILES:%=Image_data/%)
 PACKING_LIST = $(COMM_SRC) $(SEQ_SRC) $(OMP_SRC) $(MPI_SRC) $(H_FILES) \
                Makefile README COPYRIGHT sample.output bin2nc.c
 
+# CUDA Version
+
+cuda: cuda_main.cu
+	$(NVCC) -O3 cuda_main.cu -o cuda_main
+
+#.cu.o: 
+#	$(NVCC) -c $< -o $@
+
+CUDA_OBJS = $(CUDA_SRC:%.cu=%.o)
+
+
 dist:
 	dist_dir=parallel-kmeans \
 	&& rm -rf $$dist_dir $$dist_dir.tar.gz\
@@ -141,7 +153,7 @@ dist:
 	&& rm -rf $$dist_dir
 
 clean:
-	rm -rf *.o omp_main seq_main mpi_main \
+	rm -rf *.o omp_main seq_main mpi_main cuda_main\
 		bin2nc core* .make.state              \
 		*.cluster_centres *.membership \
 		*.cluster_centres.nc *.membership.nc \

@@ -1,0 +1,13 @@
+reading data points from file Image_data/texture17695.bin
+selecting the first 40 elements as initial centers
+Writing coordinates of K=40 cluster centers to file "Image_data/texture17695.bin.cluster_centres"
+Writing membership of N=17695 data objects to file "Image_data/texture17695.bin.membership"
+
+Performing **** Regular Kmeans (sequential version) ****
+Input file:     Image_data/texture17695.bin
+numObjs       = 17695
+numCoords     = 20
+numClusters   = 40
+threshold     = 0.0010
+I/O time           =     0.0054 sec
+Computation timing =     0.1654 sec

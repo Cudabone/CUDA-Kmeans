@@ -1,0 +1,14 @@
+reading data points from file ./Image_data/texture100.txt
+reading initial 64 centers from file ./Image_data/texture100.txt
+Writing coordinates of K=64 cluster centers to file "./Image_data/texture100.txt.cluster_centres"
+Writing membership of N=100 data objects to file "./Image_data/texture100.txt.membership"
+
+Performing **** Simple Kmeans  (MPI) ****
+Num of processes = 4
+Input file:        ./Image_data/texture100.txt
+numObjs          = 100
+numCoords        = 20
+numClusters      = 64
+threshold        = 0.0010
+I/O time           =     0.0053 sec
+Computation timing =     0.0002 sec

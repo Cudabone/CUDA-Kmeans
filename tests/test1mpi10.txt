@@ -1,0 +1,14 @@
+reading data points from file Image_data/texture17695.bin
+selecting the first 10 elements as initial centers
+Writing coordinates of K=10 cluster centers to file "Image_data/texture17695.bin.cluster_centres"
+Writing membership of N=17695 data objects to file "Image_data/texture17695.bin.membership"
+
+Performing **** Simple Kmeans  (MPI) ****
+Num of processes = 4
+Input file:        Image_data/texture17695.bin
+numObjs          = 17695
+numCoords        = 20
+numClusters      = 10
+threshold        = 0.0010
+I/O time           =     0.0305 sec
+Computation timing =     0.0728 sec
