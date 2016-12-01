@@ -28,7 +28,7 @@ __device__ inline float euclidean_dist(float *d_Clusters,
 __global__ void find_nearest_cluster(float *d_Clusters,
 										float *d_Objects,
 										float *d_Deltas,
-										float *d_Membership,
+										int *d_Membership,
 										int numClusters,
 										int numObjects,
 										int numCoords)
@@ -42,6 +42,7 @@ __global__ void find_nearest_cluster(float *d_Clusters,
 	if(objectNum >= numObjects)
 		return;
 
+	//Set deltas to 0 and sync threads
 	delta[threadIdx.x] = 0.0;
 	__syncthreads();
 
@@ -65,7 +66,7 @@ __global__ void find_nearest_cluster(float *d_Clusters,
     }
 	//Each thread now knows the closest cluster to its object
 	if(d_Membership[objectNum] != index)
-		delta[objectNum] = 1.0;
+		delta[threadIdx.x] += 1.0;
 
 	//TODO Can use shared mem for this if better
 	//Assign Membership for Object
@@ -98,14 +99,39 @@ int cuda_kmeans(float **objects,      /* in: [numObjs][numCoords] */
 	float *d_Objects;
 	float *h_Deltas;
 	float *d_Deltas;
-	float *d_Membership;
+	int *d_Membership;
 	float **newClusters;
 	int *newClusterSize;
 
-	int blocksize = 32;
-	int numblocks = ceil(numObjs/blocksize);
+	//float *h_Clusters;
+	//float *h_Objects;
+	//h_Clusters = (float *)malloc(numClusters*numCoords*sizeof(float));
+	//h_Objects = (float *)malloc(numObjs*numCoords*sizeof(float));
 
-	h_Deltas = (float *)malloc(blocksize*sizeof(float));
+	int i,j;
+	/*
+	//Flatten clusters and objects for transfer
+	for(i = 0; i < numClusters; i++)
+	{
+		for(j = 0; j < numCoords;j++)
+		{
+			h_Clusters[j*numClusters + i] = clusters[i][j];
+		}
+	}
+	for(i = 0; i < numObjs; i++)
+	{
+		for(j = 0; j < numCoords;j++)
+		{
+			h_Objects[j*numObjs + i] = objects[i][j];
+		}
+	}
+	*/
+
+	//Number of threads per block
+	int blocksize = 32;
+	int numblocks = ceil((float)numObjs/blocksize);
+
+	h_Deltas = (float *)malloc(numblocks*sizeof(float));
 	//Allocate and Initialize newClusterSize to 0's
 	newClusterSize = (int *)calloc(numClusters,sizeof(int));
 
@@ -115,7 +141,6 @@ int cuda_kmeans(float **objects,      /* in: [numObjs][numCoords] */
     newClusters[0] = (float*)  calloc(numClusters * numCoords, sizeof(float));
     assert(newClusters[0] != NULL);
 
-	int i;
 	//Initialize all pointers for newClusters
     for (i=1; i<numClusters; i++)
         newClusters[i] = newClusters[i-1] + numCoords;
@@ -127,14 +152,13 @@ int cuda_kmeans(float **objects,      /* in: [numObjs][numCoords] */
 					**)&d_Objects,numObjs*numCoords*sizeof(float)),
 			"Cmalloc d_Objects");
 	cudaErrorCheck(cudaMalloc((void
-					**)&d_Deltas,blocksize*sizeof(float)),
+					**)&d_Deltas,numblocks*sizeof(float)),
 			"Cmalloc d_Deltas");
 	cudaErrorCheck(cudaMalloc((void
-					**)&d_Membership,numObjs*sizeof(float)),
+					**)&d_Membership,numObjs*sizeof(int)),
 			"Cmalloc d_Membership");
 	//cudaErrorCheck(cudaMemcpy2DToArray(,cudaMemcpyHostToDevice))
 	int loop = 0;
-	int j;
 	int index;
 	float delta;
 
@@ -142,10 +166,18 @@ int cuda_kmeans(float **objects,      /* in: [numObjs][numCoords] */
 	for(i = 0; i < numObjs; i++)
 		membership[i] = -1;
 
+	//Copy all host data to device
 	cudaErrorCheck(cudaMemcpy((void *)d_Membership,(const void
-					*)membership,numObjs*sizeof(float),cudaMemcpyHostToDevice),"Members to device");
+					*)membership,numObjs*sizeof(int),cudaMemcpyHostToDevice),"Members to device");
+
+	cudaErrorCheck(cudaMemcpy((void *)d_Objects,(const void *)objects[0],numObjs*numCoords*sizeof(float),cudaMemcpyHostToDevice),
+			"Objects to Device");
 
 	do{
+		//copy initial/new cluster centers to device 
+	cudaErrorCheck(cudaMemcpy((void *)d_Clusters,(const void
+					*)clusters[0],numClusters*numCoords*sizeof(float),cudaMemcpyHostToDevice),
+			"Clusters to Device");
 		delta = 0.0;
 		//TODO Can pretty much implement this entire loop i think in CUDA only
 		//find_nearest_cluster
@@ -157,20 +189,15 @@ int cuda_kmeans(float **objects,      /* in: [numObjs][numCoords] */
 		find_nearest_cluster<<<numblocks,blocksize,blocksize>>>
 			(d_Clusters,d_Objects,d_Deltas,d_Membership,numClusters,numObjs,numCoords);
 		cudaDeviceSynchronize();
+
 		cudaErrorCheck(cudaMemcpy((void *)h_Deltas,(const void
-						*)d_Deltas,blocksize*sizeof(float),cudaMemcpyDeviceToHost),"deltas to host");
+						*)d_Deltas,numblocks*sizeof(float),cudaMemcpyDeviceToHost),
+				"Copy deltas to host");
 		//Sum all deltas from each block
-		for(i = 0; i < blocksize; i++)
+		for(i = 0; i < numblocks; i++)
 			delta += h_Deltas[i];
 
 		//The Rest is mostly left unchanged
-
-		//TODO Look at rest
-		/* if membership changes, increase delta by 1 */
-		if (membership[i] != index) delta += 1.0;
-
-		/* assign the membership to object i */
-		membership[i] = index;
 
 		/* update new cluster center : sum of objects located within */
 		for(i = 0; i < numObjs; i++)
@@ -191,6 +218,11 @@ int cuda_kmeans(float **objects,      /* in: [numObjs][numCoords] */
 
 		delta /= numObjs;
 	} while (delta > threshold && loop++ < 500);
+
+	//Copy membership back
+	cudaErrorCheck(cudaMemcpy((void *)membership,(const void
+					*)d_Membership,numObjs*sizeof(int),cudaMemcpyDeviceToHost),
+			"Membership to Host");
 
 	//Free All Cuda and C Pointers
 
