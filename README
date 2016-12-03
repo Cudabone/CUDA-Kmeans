@@ -1,3 +1,9 @@
+CS546 CUDA Implementation Instructions
+File: cuda_main.cu
+Build: make cuda
+Run: ./cuda_main <options...>
+The options are specified below following the sequential usage.
+
 Parallel K-Means Data Clustering
 
 The software package of parallel K-means data clustering contains the 
