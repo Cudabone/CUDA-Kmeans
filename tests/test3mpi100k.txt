@@ -1,0 +1,14 @@
+reading data points from file ./Image_data/texture100k.txt
+selecting the first 1024 elements as initial centers
+Writing coordinates of K=1024 cluster centers to file "./Image_data/texture100k.txt.cluster_centres"
+Writing membership of N=100100 data objects to file "./Image_data/texture100k.txt.membership"
+
+Performing **** Simple Kmeans  (MPI) ****
+Num of processes = 4
+Input file:        ./Image_data/texture100k.txt
+numObjs          = 100100
+numCoords        = 20
+numClusters      = 1024
+threshold        = 0.0010
+I/O time           =     0.4089 sec
+Computation timing =     0.7889 sec

@@ -339,7 +339,7 @@ int cuda_kmeans(float **objects,      /* in: [numObjs][numCoords] */
 	*/
 
 	//Number of threads per block
-	int blocksize = 64;
+	int blocksize = 1024;
 	int numblocks = ceil((float)numObjs/blocksize);
 
 	h_Deltas = (float *)malloc(numblocks*sizeof(float));
